@@ -121,7 +121,7 @@ md"### Exercise 1.2
 Write a function newton_sqrt(x) which implements the above algorithm."
 
 # ╔═╡ 4896bf0c-e754-11ea-19dc-1380bb356ab6
-function newton_sqrt(x, error_margin=eps(), a = x / 2)
+function newton_sqrt(x, error_margin = eps(), a = x / 2)
 	bound = x / a
 	while abs(a - bound) > error_margin
 		a = (a + bound) / 2
