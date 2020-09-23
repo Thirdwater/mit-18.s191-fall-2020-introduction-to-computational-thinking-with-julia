@@ -94,7 +94,13 @@ md"👉 Make a function `mean` using a `for` loop, which computes the mean/avera
 
 # ╔═╡ 0ffa8354-edee-11ea-2883-9d5bfea4a236
 function mean(x)
-	return sum(x) / size(x)[1]
+	sum = 0
+	count = 0
+	for element in x
+		sum += element
+		count += 1
+	end
+	return sum / count
 end
 
 # ╔═╡ 1f104ce4-ee0e-11ea-2029-1d9c817175af
@@ -130,6 +136,9 @@ end
 
 # ╔═╡ 73ef1d50-edf0-11ea-343c-d71706874c82
 copy_of_random_vect = copy(random_vect); # in case demean modifies `x`
+# use Julia's convention instead:
+# foo(...) for when foo doesn't mutate its arguments
+# foo!(...) for when foo can mutate its arguments
 
 # ╔═╡ 38155b5a-edf0-11ea-3e3f-7163da7433fb
 mean(demean(copy_of_random_vect))
@@ -169,6 +178,9 @@ end
 # ╔═╡ c4761a7e-edf2-11ea-1e75-118e73dadbed
 vecvec_to_matrix([[1,2], [3,4]])
 
+# ╔═╡ 376cb68c-fd93-11ea-0c4f-73e80129dfa6
+vecvec_to_matrix([[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]])
+
 # ╔═╡ 393667ca-edf2-11ea-09c5-c5d292d5e896
 md"""
 
@@ -183,6 +195,9 @@ end
 
 # ╔═╡ 70955aca-ed6e-11ea-2330-89b4d20b1795
 matrix_to_vecvec([6 7; 8 9])
+
+# ╔═╡ 1d655a32-fd93-11ea-2a1e-53001c0ac792
+matrix_to_vecvec([1 2 3 4; 5 6 7 8; 9 10 11 12])
 
 # ╔═╡ 5da8cbe8-eded-11ea-2e43-c5b7cc71e133
 begin
@@ -222,13 +237,31 @@ md"""
 """
 
 # ╔═╡ f6898df6-ee07-11ea-2838-fde9bc739c11
-function mean_colors(image)
-	
-	return missing
+function mean_colors_using_loop(image)
+	# Using simple loop
+	color_array = vec(image)
+	pixel_count = length(image)
+	∑r = 0
+	∑g = 0
+	∑b = 0
+	for color in color_array
+		∑r += color.r
+		∑g += color.g
+		∑b += color.b
+	end
+	r̅ = ∑r / pixel_count
+	g̅ = ∑g / pixel_count
+	b̅ = ∑b / pixel_count
+	return (r̅ , g̅ , b̅ )
 end
 
-# ╔═╡ d75ec078-ee0d-11ea-3723-71fb8eecb040
-
+# ╔═╡ 7d47cee6-fda5-11ea-1472-d7bf13ade298
+function mean_colors(image)
+	# Utilizing Julia's syntax
+	∑ = reduce(+, image)
+	n = length(image)
+	return (∑.r/n, ∑.g/n, ∑.b/n)
+end
 
 # ╔═╡ f68d4a36-ee07-11ea-0832-0360530f102e
 md"""
@@ -1390,10 +1423,12 @@ with_sobel_edge_detect(sobel_camera_image)
 # ╟─22f28dae-edf2-11ea-25b5-11c369ae1253
 # ╠═8c19fb72-ed6c-11ea-2728-3fa9219eddc4
 # ╠═c4761a7e-edf2-11ea-1e75-118e73dadbed
+# ╠═376cb68c-fd93-11ea-0c4f-73e80129dfa6
 # ╟─adfbe9b2-ed6c-11ea-09ac-675262f420df
 # ╟─393667ca-edf2-11ea-09c5-c5d292d5e896
 # ╠═9f1c6d04-ed6c-11ea-007b-75e7e780703d
 # ╠═70955aca-ed6e-11ea-2330-89b4d20b1795
+# ╠═1d655a32-fd93-11ea-2a1e-53001c0ac792
 # ╟─e06b7fbc-edf2-11ea-1708-fb32599dded3
 # ╟─5da8cbe8-eded-11ea-2e43-c5b7cc71e133
 # ╟─45815734-ee0a-11ea-2982-595e1fc0e7b1
@@ -1403,9 +1438,9 @@ with_sobel_edge_detect(sobel_camera_image)
 # ╟─e86ed944-ee05-11ea-3e0f-d70fc73b789c
 # ╟─c54ccdea-ee05-11ea-0365-23aaf053b7d7
 # ╠═f6898df6-ee07-11ea-2838-fde9bc739c11
+# ╠═7d47cee6-fda5-11ea-1472-d7bf13ade298
 # ╠═5be9b144-ee0d-11ea-2a8d-8775de265a1d
 # ╟─4d0158d0-ee0d-11ea-17c3-c169d4284acb
-# ╠═d75ec078-ee0d-11ea-3723-71fb8eecb040
 # ╟─f68d4a36-ee07-11ea-0832-0360530f102e
 # ╠═f6991a50-ee07-11ea-0bc4-1d68eb028e6a
 # ╠═f6a655f8-ee07-11ea-13b6-43ca404ddfc7
