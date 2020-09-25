@@ -428,11 +428,14 @@ answer_about_noise_intensity = md"""
 The image is unrecognisable with intensity 1.3.
 
 Starting from complete noise:
-[5, ∞) Unrecognisable
-[3, 5) Faint dark patches
-[2, 3) Faint colored patches
-[1.3, 2) Possibly a rat
-[0, 1.3) Dog lying sideways
+ * [5, ∞) Unrecognisable
+ * [3, 5) Faint dark patches
+ * [2, 3) Faint colored patches
+ * [1.3, 2) Possibly a rat
+ * [0, 1.3) Dog lying sideways
+
+For large noise, we are more likely to get the boundary values 0 or 1 for each rgb components due to clamping.
+Full saturation/desaturation is possible at s ≥ 1 for any given rgb value (1 - 1 down to 0 or 0 + 1 up to 1), so this is the threshold in which we can guarantee information loss.
 """
 
 # ╔═╡ 81510a30-ee0e-11ea-0062-8b3327428f9d
@@ -488,7 +491,7 @@ Let's create a vector `v` of random numbers of length `n=100`.
 # ╔═╡ 7fcd6230-ee09-11ea-314f-a542d00d582e
 n = 100
 
-# ╔═╡ 7fdb34dc-ee09-11ea-366b-ffe10d1aa845
+# ╔═╡ 4c84d578-ff04-11ea-0c08-4fb6ab06bb9e
 v = rand(n)
 
 # ╔═╡ 7fe9153e-ee09-11ea-15b3-6f24fcc20734
@@ -503,10 +506,16 @@ You've seen some colored lines in this notebook to visualize arrays. Can you mak
 """
 
 # ╔═╡ 01070e28-ee0f-11ea-1928-a7919d452bdd
-
+colored_line(v)
 
 # ╔═╡ 7522f81e-ee1c-11ea-35af-a17eb257ff1a
 md"Try changing `n` and `v` around. Notice that you can run the cell `v = rand(n)` again to regenerate new random values."
+
+# ╔═╡ 608186fc-ff04-11ea-3f4e-3b5f39762036
+@bind n_slider Slider(1:1:100, show_value=true)
+
+# ╔═╡ 79c8c8d2-ff04-11ea-32ce-555b6b03354a
+colored_line(rand(n_slider))
 
 # ╔═╡ 801d90c0-ee09-11ea-28d6-61b806de26dc
 md"""
@@ -520,8 +529,15 @@ A better solution is to use the *closest* value that is inside the vector. Effec
 
 # ╔═╡ 802bec56-ee09-11ea-043e-51cf1db02a34
 function extend(v, i)
-	
-	return missing
+	low = firstindex(v)
+	if i < low
+		return v[low]
+	end
+	high = lastindex(v)
+	if i > high
+		return v[high]
+	end
+	return v[i]
 end
 
 # ╔═╡ b7f3994c-ee1b-11ea-211a-d144db8eafc2
@@ -560,8 +576,17 @@ md"""
 
 # ╔═╡ 807e5662-ee09-11ea-3005-21fdcc36b023
 function blur_1D(v, l)
-	
-	return missing
+	result = fill(0.0, length(v))
+	count = 2l + 1
+	for index in 1:length(v)
+		∑ = 0
+		for i in (index - l):(index + l)
+			∑ += extend(v, i)
+		end
+		avg = ∑ / count
+		result[index] = avg
+	end
+	return result
 end
 
 # ╔═╡ 808deca8-ee09-11ea-0ee3-1586fa1ce282
@@ -587,7 +612,19 @@ md"""
 """
 
 # ╔═╡ ca1ac5f4-ee1c-11ea-3d00-ff5268866f87
+@bind l_box Slider(0:1:20, show_value=true)
 
+# ╔═╡ 56936634-ff08-11ea-15ac-87bc7a9e3a38
+blur_example = rand(20)
+
+# ╔═╡ f70ea5be-ff07-11ea-1b72-c31e8c5f35f7
+colored_line(blur_example)
+
+# ╔═╡ 99ca8b8c-ff0b-11ea-280e-3177f6ebd285
+blur_1D(blur_example, l_box)
+
+# ╔═╡ 39d8a0e0-ff08-11ea-0ddc-1fe11f4994dd
+colored_line(blur_1D(blur_example, l_box))
 
 # ╔═╡ 80ab64f4-ee09-11ea-29b4-498112ed0799
 md"""
@@ -605,8 +642,17 @@ Again, we need to take care about what happens if $v_{i -n }$ falls off the end 
 
 # ╔═╡ 28e20950-ee0c-11ea-0e0a-b5f2e570b56e
 function convolve_vector(v, k)
-	
-	return missing
+	conv = fill(0.0, length(v))
+	kernel_size = length(k)
+	l = (kernel_size - 1) ÷ 2
+	for i in 1:length(v)
+		weight = 0
+		for j in 1:kernel_size
+			weight += extend(v, i - l - 1 + j) * k[j]
+		end
+		conv[i] = weight
+	end
+	return conv
 end
 
 # ╔═╡ 93284f92-ee12-11ea-0342-833b1a30625c
@@ -638,16 +684,25 @@ For simplicity you can take $\sigma=1$.
 """
 
 # ╔═╡ 1c8b4658-ee0c-11ea-2ede-9b9ed7d3125e
-function gaussian_kernel(n)
+begin
+	function gaussian_kernel(n)
+		gaussian_kernel(n, 1)
+	end
 	
-	return missing
+	function gaussian_kernel(n, σ)
+		domain = (-n ÷ 2):(n ÷ 2)
+		G(x) = (1 / √(2π*σ^2)) * exp(-x^2 / 2σ^2)
+		kernel = G.(domain)
+		normalized_kernel = kernel ./ sum(kernel)
+		return normalized_kernel
+	end
 end
 
 # ╔═╡ f8bd22b8-ee14-11ea-04aa-ab16fd01826e
 md"Let's test your kernel function!"
 
 # ╔═╡ 2a9dd06a-ee13-11ea-3f84-67bb309c77a8
-gaussian_kernel_size_1D = 3 # change this value, or turn me into a slider!
+@bind gaussian_kernel_size_1D Slider(1:2:25, show_value=true)
 
 # ╔═╡ 38eb92f6-ee13-11ea-14d7-a503ac04302e
 test_gauss_1D_a = let
@@ -1506,11 +1561,13 @@ with_sobel_edge_detect(sobel_camera_image)
 # ╟─e08781fa-ed61-11ea-13ae-91a49b5eb74a
 # ╟─7fc8ee1c-ee09-11ea-1382-ad21d5373308
 # ╠═7fcd6230-ee09-11ea-314f-a542d00d582e
-# ╠═7fdb34dc-ee09-11ea-366b-ffe10d1aa845
+# ╠═4c84d578-ff04-11ea-0c08-4fb6ab06bb9e
 # ╟─7fe9153e-ee09-11ea-15b3-6f24fcc20734
 # ╟─80108d80-ee09-11ea-0368-31546eb0d3cc
 # ╠═01070e28-ee0f-11ea-1928-a7919d452bdd
 # ╟─7522f81e-ee1c-11ea-35af-a17eb257ff1a
+# ╟─608186fc-ff04-11ea-3f4e-3b5f39762036
+# ╟─79c8c8d2-ff04-11ea-32ce-555b6b03354a
 # ╟─801d90c0-ee09-11ea-28d6-61b806de26dc
 # ╠═802bec56-ee09-11ea-043e-51cf1db02a34
 # ╟─b7f3994c-ee1b-11ea-211a-d144db8eafc2
@@ -1526,7 +1583,11 @@ with_sobel_edge_detect(sobel_camera_image)
 # ╠═807e5662-ee09-11ea-3005-21fdcc36b023
 # ╟─808deca8-ee09-11ea-0ee3-1586fa1ce282
 # ╟─809f5330-ee09-11ea-0e5b-415044b6ac1f
-# ╠═ca1ac5f4-ee1c-11ea-3d00-ff5268866f87
+# ╟─ca1ac5f4-ee1c-11ea-3d00-ff5268866f87
+# ╠═56936634-ff08-11ea-15ac-87bc7a9e3a38
+# ╟─f70ea5be-ff07-11ea-1b72-c31e8c5f35f7
+# ╠═99ca8b8c-ff0b-11ea-280e-3177f6ebd285
+# ╟─39d8a0e0-ff08-11ea-0ddc-1fe11f4994dd
 # ╟─ea435e58-ee11-11ea-3785-01af8dd72360
 # ╟─80ab64f4-ee09-11ea-29b4-498112ed0799
 # ╠═28e20950-ee0c-11ea-0e0a-b5f2e570b56e
