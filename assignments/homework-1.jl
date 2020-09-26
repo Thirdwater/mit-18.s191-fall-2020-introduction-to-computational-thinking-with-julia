@@ -276,10 +276,7 @@ begin
 	end
 	
 	function quantize(color::AbstractRGB)
-		r = quantize(color.r)
-		g = quantize(color.g)
-		b = quantize(color.b)
-		return RGB(r, g, b)
+		return mapc.(channel -> quantize(channel), color)
 	end
 	
 	function quantize(image::AbstractMatrix)
@@ -321,10 +318,7 @@ md"""
 
 # ╔═╡ 63e8d636-ee0b-11ea-173d-bd3327347d55
 function invert(color::AbstractRGB)
-	r = 1 - color.r
-	g = 1 - color.g
-	b = 1 - color.b
-	return RGB(r, g, b)
+	return mapc.(channel -> 1 - channel, color)
 end
 
 # ╔═╡ 2cc2f84e-ee0d-11ea-373b-e7ad3204bb00
@@ -375,10 +369,7 @@ begin
 	end
 	
 	function noisify(color::AbstractRGB, s)
-		r = noisify(color.r, s)
-		g = noisify(color.g, s)
-		b = noisify(color.b, s)
-		return RGB(r, g, b)
+		return mapc.(channel -> noisify(channel, s), color)
 	end
 	
 	function noisify(image::AbstractMatrix, s)
@@ -425,7 +416,7 @@ You may need noise intensities larger than 1. Why?
 
 # ╔═╡ bdc2df7c-ee0c-11ea-2e9f-7d2c085617c1
 answer_about_noise_intensity = md"""
-The image is unrecognisable with intensity 1.3.
+The image is unrecognisable with intensity around 1.3.
 
 Starting from complete noise:
  * [5, ∞) Unrecognisable
@@ -434,8 +425,8 @@ Starting from complete noise:
  * [1.3, 2) Possibly a rat
  * [0, 1.3) Dog lying sideways
 
-For large noise, we are more likely to get the boundary values 0 or 1 for each rgb components due to clamping.
-Full saturation/desaturation is possible at s ≥ 1 for any given rgb value (1 - 1 down to 0 or 0 + 1 up to 1), so this is the threshold in which we can guarantee information loss.
+Full saturation/desaturation is possible at s ≥ 1 for any given rgb value (1 - 1 down to 0 or 0 + 1 up to 1), so this is the threshold in which we can guarantee complete information loss regardless of the initial pixel value.
+The larger the noise, the more likely this will happen.
 """
 
 # ╔═╡ 81510a30-ee0e-11ea-0062-8b3327428f9d
@@ -808,7 +799,7 @@ function convolve_image(M::AbstractMatrix, K::AbstractMatrix)
 			j_offset = j + k_j_offset + k_j
 			weight += extend_mat(M, i_offset, j_offset) * K[k_i, k_j]
 		end
-		result[i, j] = weight
+		result[i, j] = mapc.(channel -> myclamp(channel, 0, 1), weight)
 	end
 	return result
 end
@@ -833,7 +824,7 @@ convolve_image(test_image_with_border, K_test)
 md"_Edit_ `K_test` _to create your own test case!_"
 
 # ╔═╡ e7f8b41a-ee25-11ea-287a-e75d33fbd98b
-convolve_image(philip, K_test)
+[ philip convolve_image(philip, K_test) ]
 
 # ╔═╡ 8a335044-ee19-11ea-0255-b9391246d231
 md"""
@@ -864,6 +855,9 @@ function gaussian_kernel_2D(n, σ)
 	normalized_kernel = kernel ./ sum(kernel)
 	return normalized_kernel
 end
+
+# ╔═╡ 132f6670-ffd2-11ea-27e7-d9b294052b76
+gaussian_kernel_2D(3, 1)
 
 # ╔═╡ 8150feb0-ff33-11ea-1c73-ade8989ba1e8
 Gray.(gaussian_kernel_2D(11, 1))
@@ -919,11 +913,25 @@ $$G_\text{total} = \sqrt{G_x^2 + G_y^2}.$$
 For simplicity you can choose one of the "channels" (colours) in the image to apply this to.
 """
 
+# ╔═╡ 8fd00c20-ffc8-11ea-109b-433d5f8865fe
+Gx = [1 0 -1; 2 0 -2; 1 0 -1]
+
+# ╔═╡ a12c7990-ffc8-11ea-29ef-e10bad2dc5d1
+Gy = [1 2 1; 0 0 0; -1 -2 -1]
+
 # ╔═╡ 9eeb876c-ee15-11ea-1794-d3ea79f47b75
 function with_sobel_edge_detect(image)
+	gx_convolved = convolve_image(image, Gx)
+	gy_convolved = convolve_image(image, Gy)
 	
-	return missing
+	gx² = mapc.(channel -> channel^2, gx_convolved)
+	gy² = mapc.(channel -> channel^2, gy_convolved)
+	g_total = mapc.(channel -> √(channel), gx² + gy²)
+	return g_total
 end
+
+# ╔═╡ 2ca69f70-ffcc-11ea-1494-9d026fccf687
+[ philip with_sobel_edge_detect(philip) ]
 
 # ╔═╡ 1b85ee76-ee10-11ea-36d7-978340ef61e6
 md"""
@@ -1489,13 +1497,16 @@ end
 gauss_camera_image = process_raw_camera_data(gauss_raw_camera_data);
 
 # ╔═╡ a75701c4-ee18-11ea-2863-d3042e71a68b
-with_gaussian_blur(gauss_camera_image)
+[ gauss_camera_image with_gaussian_blur(gauss_camera_image) ]
 
 # ╔═╡ 1ff6b5cc-ee19-11ea-2ca8-7f00c204f587
 sobel_camera_image = Gray.(process_raw_camera_data(sobel_raw_camera_data));
 
 # ╔═╡ 1bf94c00-ee19-11ea-0e3c-e12bc68d8e28
-with_sobel_edge_detect(sobel_camera_image)
+[ sobel_camera_image with_sobel_edge_detect(sobel_camera_image) ]
+
+# ╔═╡ c168b452-ffcb-11ea-397c-9726cfe2b288
+[ convolve_image(sobel_camera_image, Gx) convolve_image(sobel_camera_image, Gy) with_sobel_edge_detect(sobel_camera_image) ]
 
 # ╔═╡ Cell order:
 # ╠═83eb9ca0-ed68-11ea-0bc5-99a09c68f867
@@ -1660,6 +1671,7 @@ with_sobel_edge_detect(sobel_camera_image)
 # ╟─8a335044-ee19-11ea-0255-b9391246d231
 # ╟─7c50ea80-ee15-11ea-328f-6b4e4ff20b7e
 # ╠═32ac6744-ff32-11ea-22dd-913aa7a27d8c
+# ╠═132f6670-ffd2-11ea-27e7-d9b294052b76
 # ╠═8150feb0-ff33-11ea-1c73-ade8989ba1e8
 # ╠═aad67fd0-ee15-11ea-00d4-274ec3cda3a3
 # ╟─8ae59674-ee18-11ea-3815-f50713d0fa08
@@ -1667,9 +1679,13 @@ with_sobel_edge_detect(sobel_camera_image)
 # ╠═a75701c4-ee18-11ea-2863-d3042e71a68b
 # ╟─f461f5f2-ee18-11ea-3d03-95f57f9bf09e
 # ╟─7c6642a6-ee15-11ea-0526-a1aac4286cdd
+# ╟─8fd00c20-ffc8-11ea-109b-433d5f8865fe
+# ╟─a12c7990-ffc8-11ea-29ef-e10bad2dc5d1
 # ╠═9eeb876c-ee15-11ea-1794-d3ea79f47b75
 # ╟─1a0324de-ee19-11ea-1d4d-db37f4136ad3
 # ╠═1bf94c00-ee19-11ea-0e3c-e12bc68d8e28
+# ╠═c168b452-ffcb-11ea-397c-9726cfe2b288
+# ╠═2ca69f70-ffcc-11ea-1494-9d026fccf687
 # ╟─1ff6b5cc-ee19-11ea-2ca8-7f00c204f587
 # ╟─0001f782-ee0e-11ea-1fb4-2b5ef3d241e2
 # ╠═1b85ee76-ee10-11ea-36d7-978340ef61e6
