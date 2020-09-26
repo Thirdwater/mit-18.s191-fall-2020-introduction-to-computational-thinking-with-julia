@@ -755,8 +755,10 @@ md"""
 
 # ╔═╡ 7c2ec6c6-ee15-11ea-2d7d-0d9401a5e5d1
 function extend_mat(M::AbstractMatrix, i, j)
-	
-	return missing
+	num_rows, num_columns = size(M)
+	clamp_i = i < 1 ? 1 : (i > num_rows ? num_rows : i)
+	clamp_j = j < 1 ? 1 : (j > num_columns ? num_columns : j)
+	return M[clamp_i, clamp_j]
 end
 
 # ╔═╡ 9afc4dca-ee16-11ea-354f-1d827aaa61d2
@@ -791,8 +793,24 @@ md"""
 
 # ╔═╡ 8b96e0bc-ee15-11ea-11cd-cfecea7075a0
 function convolve_image(M::AbstractMatrix, K::AbstractMatrix)
+	m_rows = size(M, 1)
+	m_columns = size(M, 2)
+	k_rows = size(K, 1)
+	k_columns = size(K, 2)
+	k_i_offset = -(k_rows ÷ 2) - 1
+	k_j_offset = -(k_columns ÷ 2) - 1
 	
-	return missing
+	result = fill(zero(M[1]), size(M))
+	for i in 1:m_rows, j in 1:m_columns
+		weight = zero(M[1])
+		for k_i in 1:k_rows, k_j in 1:k_columns
+			i_offset = i + k_i_offset + k_i
+			j_offset = j + k_j_offset + k_j
+			weight += extend_mat(M, i_offset, j_offset) * K[k_i, k_j]
+		end
+		result[i, j] = weight
+	end
+	return result
 end
 
 # ╔═╡ 5a5135c6-ee1e-11ea-05dc-eb0c683c2ce5
@@ -803,9 +821,9 @@ test_image_with_border = [get(small_image, (i, j), Gray(0)) for (i,j) in Iterato
 
 # ╔═╡ 275a99c8-ee1e-11ea-0a76-93e3618c9588
 K_test = [
-	0   0  0
-	1/2 0  1/2
-	0   0  0
+	0   1/5  0
+	1/5 1/5  1/5
+	0   1/5  0
 ]
 
 # ╔═╡ 42dfa206-ee1e-11ea-1fcd-21671042064c
@@ -836,10 +854,23 @@ Here, the 2D Gaussian kernel will be defined as
 $$G(x,y)=\frac{1}{2\pi \sigma^2}e^{\frac{-(x^2+y^2)}{2\sigma^2}}$$
 """
 
+# ╔═╡ 32ac6744-ff32-11ea-22dd-913aa7a27d8c
+function gaussian_kernel_2D(n, σ)
+	domain_1D = range(-n ÷ 2, stop = n ÷ 2)
+	domain_x = [ x for y in domain_1D, x in domain_1D ]
+	domain_y = [ y for y in domain_1D, x in domain_1D ]
+	G(x, y) = (1 / √(2π*σ^2)) * exp(-(x^2 + y^2) / 2σ^2)
+	kernel = G.(domain_x, domain_y)
+	normalized_kernel = kernel ./ sum(kernel)
+	return normalized_kernel
+end
+
+# ╔═╡ 8150feb0-ff33-11ea-1c73-ade8989ba1e8
+Gray.(gaussian_kernel_2D(11, 1))
+
 # ╔═╡ aad67fd0-ee15-11ea-00d4-274ec3cda3a3
 function with_gaussian_blur(image)
-	
-	return missing
+	return convolve_image(image, gaussian_kernel_2D(11, 1))
 end
 
 # ╔═╡ 8ae59674-ee18-11ea-3815-f50713d0fa08
@@ -1605,7 +1636,7 @@ with_sobel_edge_detect(sobel_camera_image)
 # ╟─bc1c20a4-ee14-11ea-3525-63c9fa78f089
 # ╠═24c21c7c-ee14-11ea-1512-677980db1288
 # ╟─27847dc4-ee0a-11ea-0651-ebbbb3cfd58c
-# ╠═b01858b6-edf3-11ea-0826-938d33c19a43
+# ╟─b01858b6-edf3-11ea-0826-938d33c19a43
 # ╟─7c1bc062-ee15-11ea-30b1-1b1e76520f13
 # ╠═7c2ec6c6-ee15-11ea-2d7d-0d9401a5e5d1
 # ╟─649df270-ee24-11ea-397e-79c4355e38db
@@ -1627,7 +1658,9 @@ with_sobel_edge_detect(sobel_camera_image)
 # ╟─6e53c2e6-ee1e-11ea-21bd-c9c05381be07
 # ╠═e7f8b41a-ee25-11ea-287a-e75d33fbd98b
 # ╟─8a335044-ee19-11ea-0255-b9391246d231
-# ╠═7c50ea80-ee15-11ea-328f-6b4e4ff20b7e
+# ╟─7c50ea80-ee15-11ea-328f-6b4e4ff20b7e
+# ╠═32ac6744-ff32-11ea-22dd-913aa7a27d8c
+# ╠═8150feb0-ff33-11ea-1c73-ade8989ba1e8
 # ╠═aad67fd0-ee15-11ea-00d4-274ec3cda3a3
 # ╟─8ae59674-ee18-11ea-3815-f50713d0fa08
 # ╟─94c0798e-ee18-11ea-3212-1533753eabb6
