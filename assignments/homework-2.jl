@@ -189,7 +189,7 @@ md"""
 no_vcat_observation = md"""
 Slice operator and the vcat function both make new arrays.
 In the non-optimized version, we created a new copy (by vcat) of the 2 slices which are themselves copies (by slicing).
-In exercise 1.1, we elimited the copy from vcat which saved us approximately 450KB, the image size (but slightly less since the copies have 1 less column).
+In exercise 1.1, we eliminated the copy from vcat which saved us approximately 450KB, the image size (but slightly less since the copies have 1 less column).
 However, we are still making extra copies from slicing (see next exercise).
 """
 
@@ -342,8 +342,19 @@ random_seam(m, n, i) = reduce((a, b) -> [a..., clamp(last(a) + rand(-1:1), 1, n)
 
 # ╔═╡ abf20aa0-f31b-11ea-2548-9bea4fab4c37
 function greedy_seam(energies, starting_pixel::Int)
-	# you can delete the body of this function - it's just a placeholder.
-	random_seam(size(energies)..., starting_pixel)
+	height, width = size(energies)
+	@assert 1 ≤ starting_pixel ≤ width
+	seam = zeros(Int, height)
+	seam[1] = starting_pixel
+	for row in 2:height
+		parent_column = seam[row - 1]
+		left_energy = energies[row, max(parent_column - 1, 1)]
+		mid_energy = energies[row, parent_column]
+		right_energy = energies[row, min(parent_column + 1, width)]
+		direction = argmin([left_energy, mid_energy, right_energy]) - 2
+		seam[row] = clamp(parent_column + direction, 1, width)
+	end
+	return seam
 end
 
 # ╔═╡ 5430d772-f397-11ea-2ed8-03ee06d02a22
@@ -416,13 +427,30 @@ Return these two values in a tuple.
 # ╔═╡ 8ec27ef8-f320-11ea-2573-c97b7b908cb7
 ## returns lowest possible sum energy at pixel (i, j), and the column to jump to in row i+1.
 function least_energy(energies, i, j)
+	height, width = size(energies)
+	@assert 1 ≤ i ≤ height
+	@assert 1 ≤ j ≤ width
+	
 	# base case
-	# if i == something
-	#    return energies[...] # no need for recursive computation in the base case!
-	# end
-	#
+	if i == height
+		return energies[i, j]
+	end
+	
 	# induction
-	# combine results from recursive calls to `least_energy`.
+	mid_energies = least_energy(energies, i + 1, j)[1]
+	left_energies = mid_energies
+	right_energies = mid_energies
+	if j > 1
+		left_energies = least_energy(energies, i + 1, j - 1)[1]
+	end
+	if j < width
+		right_energies = least_energy(energies, i + 1, j + 1)[1]
+	end
+	next_least_energy, index = findmin([left_energies, mid_energies, right_energies])
+	sum_least_energy = energies[i, j] + next_least_energy
+	direction = index - 2
+	next_move = clamp(j + direction, 1, width)
+	return (sum_least_energy, next_move)
 end
 
 # ╔═╡ a7f3d9f8-f3bb-11ea-0c1a-55bbb8408f09
@@ -461,7 +489,14 @@ This will give you the method used in the lecture to perform [exhaustive search 
 function recursive_seam(energies, starting_pixel)
 	m, n = size(energies)
 	# Replace the following line with your code.
-	[rand(1:starting_pixel) for i=1:m]
+	seam = zeros(Int, m)
+	seam[1] = starting_pixel
+	column = starting_pixel
+	for row in 1:m - 1
+		energy, column = least_energy(energies, row, column)
+		seam[row + 1] = column
+	end
+	return seam
 end
 
 # ╔═╡ 1d55333c-f393-11ea-229a-5b1e9cabea6a
@@ -477,7 +512,9 @@ md"""
 
 # ╔═╡ 6d993a5c-f373-11ea-0dde-c94e3bbd1552
 exhaustive_observation = md"""
-<your answer here>
+ * Unlike the greedy approach, this method search through each of the branch j-1, j, j+1. Since this is done recursively, we will end up going through all possible branchings from the starting point, hence it is exhaustive.
+
+ * Each pixel branch into 3 more in each row so the number of possible seams is O(3^m) with m being the number of rows.
 """
 
 # ╔═╡ ea417c2a-f373-11ea-3bb0-b1b5754f2fac
@@ -926,7 +963,7 @@ bigbreak
 # ╠═85033040-f372-11ea-2c31-bb3147de3c0d
 # ╠═1d55333c-f393-11ea-229a-5b1e9cabea6a
 # ╠═d88bc272-f392-11ea-0efd-15e0e2b2cd4e
-# ╠═e66ef06a-f392-11ea-30ab-7160e7723a17
+# ╟─e66ef06a-f392-11ea-30ab-7160e7723a17
 # ╟─c572f6ce-f372-11ea-3c9a-e3a21384edca
 # ╠═6d993a5c-f373-11ea-0dde-c94e3bbd1552
 # ╠═ea417c2a-f373-11ea-3bb0-b1b5754f2fac
