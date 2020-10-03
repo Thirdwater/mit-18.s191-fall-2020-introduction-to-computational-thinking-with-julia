@@ -685,7 +685,15 @@ Now it's easy to see that the above algorithm is equivalent to one that populate
 
 # ╔═╡ ff055726-f320-11ea-32f6-2bf38d7dd310
 function least_energy_matrix(energies)
-	copy(energies)
+	matrix = copy(energies)
+	height, width = size(matrix)
+	for i in height - 1:-1:1, j in 1:width
+		left = matrix[i + 1, clamp(j - 1, 1, width)]
+		mid = matrix[i + 1, j]
+		right = matrix[i + 1, clamp(j + 1, 1, width)]
+		matrix[i, j] = energies[i, j] + min(left, mid, right)
+	end
+	return matrix
 end
 
 # ╔═╡ 92e19f22-f37b-11ea-25f7-e321337e375e
@@ -698,10 +706,21 @@ md"""
 # ╔═╡ 795eb2c4-f37b-11ea-01e1-1dbac3c80c13
 function seam_from_precomputed_least_energy(energies, starting_pixel::Int)
 	least_energies = least_energy_matrix(energies)
-	m, n = size(least_energies)
+	height, width = size(least_energies)
 	
-	# Replace the following line with your code.
-	[starting_pixel for i=1:m]
+	seam = zeros(Int, height)
+	seam[1] = starting_pixel
+	for row in 1:height - 1
+		left_energy = least_energies[row + 1, max(seam[row] - 1, 1)]
+		mid_energy = least_energies[row + 1, seam[row]]
+		right_energy = least_energies[row + 1, min(seam[row] + 1, width)]
+		min_energy, index = findmin([left_energy, mid_energy, right_energy])
+		direction = index - 2
+		next_column = clamp(seam[row] + direction, 1, width)
+		seam[row + 1] = next_column
+	end
+	
+	return seam
 end
 
 # ╔═╡ 51df0c98-f3c5-11ea-25b8-af41dc182bac
@@ -873,6 +892,18 @@ shrink_n(pika, 3, recursive_seam)
 
 # ╔═╡ 46b637b0-0533-11eb-04f8-3778c96d5306
 memoized_shrink_n(pika, 3, recursive_memoized_seam)
+
+# ╔═╡ 764e4200-0543-11eb-1562-93b194d11a7e
+shrink_n(pika, 3, recursive_seam)
+
+# ╔═╡ 79d03cd0-0543-11eb-2f7f-0b1690f25161
+memoized_shrink_n(pika, 3, recursive_memoized_seam)
+
+# ╔═╡ b2972650-0543-11eb-08f8-6551263ef091
+matrix_memoized_shrink_n(pika, 3, matrix_memoized_seam)
+
+# ╔═╡ c1d98d5e-0543-11eb-08c2-93ac61b6bf2b
+shrink_n(pika, 3, seam_from_precomputed_least_energy)
 
 # ╔═╡ ffc17f40-f380-11ea-30ee-0fe8563c0eb1
 hint(text) = Markdown.MD(Markdown.Admonition("hint", "Hint", [text]))
@@ -1103,16 +1134,20 @@ bigbreak
 # ╟─e0622780-f3b4-11ea-1f44-59fb9c5d2ebd
 # ╟─92e19f22-f37b-11ea-25f7-e321337e375e
 # ╠═795eb2c4-f37b-11ea-01e1-1dbac3c80c13
+# ╠═764e4200-0543-11eb-1562-93b194d11a7e
+# ╠═79d03cd0-0543-11eb-2f7f-0b1690f25161
+# ╠═b2972650-0543-11eb-08f8-6551263ef091
+# ╠═c1d98d5e-0543-11eb-08c2-93ac61b6bf2b
 # ╠═51df0c98-f3c5-11ea-25b8-af41dc182bac
 # ╠═51e28596-f3c5-11ea-2237-2b72bbfaa001
-# ╠═0a10acd8-f3c6-11ea-3e2f-7530a0af8c7f
+# ╟─0a10acd8-f3c6-11ea-3e2f-7530a0af8c7f
 # ╟─946b69a0-f3a2-11ea-2670-819a5dafe891
 # ╟─0fbe2af6-f381-11ea-2f41-23cd1cf930d9
 # ╟─48089a00-f321-11ea-1479-e74ba71df067
 # ╟─6b4d6584-f3be-11ea-131d-e5bdefcc791b
-# ╠═437ba6ce-f37d-11ea-1010-5f6a6e282f9b
-# ╠═976c4482-0536-11eb-023e-8fe1976b2fb3
-# ╠═b92a6ab0-0541-11eb-3e85-f51158037054
+# ╟─437ba6ce-f37d-11ea-1010-5f6a6e282f9b
+# ╟─976c4482-0536-11eb-023e-8fe1976b2fb3
+# ╟─b92a6ab0-0541-11eb-3e85-f51158037054
 # ╟─ef88c388-f388-11ea-3828-ff4db4d1874e
 # ╟─ef26374a-f388-11ea-0b4e-67314a9a9094
 # ╟─6bdbcf4c-f321-11ea-0288-fb16ff1ec526
